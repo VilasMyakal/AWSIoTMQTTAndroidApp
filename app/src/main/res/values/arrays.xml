@@ -1,0 +1,7 @@
+<resources>
+    <string-array name="roles_array">
+        <item>Publisher</item>
+        <item>Subscriber</item>
+        <item>Both</item>
+    </string-array>
+</resources>
