@@ -1,28 +1,20 @@
+// MainActivity.java
 package com.example.awsiotcertapp;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ScrollView;
-import android.widget.Spinner;
-import android.widget.TextView;
-import android.widget.Toast;
-
+import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
-
 import org.eclipse.paho.client.mqttv3.MqttException;
 
-public class MainActivity extends AppCompatActivity
-        implements MqttClientHandler.Listener {
+public class MainActivity extends AppCompatActivity implements MqttClientHandler.Listener {
 
-    private Spinner  spinnerRole;
-    private Button   buttonConnect, buttonDisconnect,buttonSubscribe, buttonPublish;
+    private Spinner spinnerRole;
+    private Button buttonConnect, buttonDisconnect, buttonSubscribe, buttonPublish;
     private EditText editTextSubTopic, editTextPubTopic, editTextMessage;
     private TextView textViewLog;
     private ScrollView scrollLog;
-
     private MqttClientHandler mqtt;
 
     @Override
@@ -30,35 +22,20 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        spinnerRole     = findViewById(R.id.spinnerRole);
-        buttonConnect   = findViewById(R.id.buttonConnect);
+        spinnerRole      = findViewById(R.id.spinnerRole);
+        buttonConnect    = findViewById(R.id.buttonConnect);
         buttonDisconnect = findViewById(R.id.buttonDisconnect);
-        buttonSubscribe = findViewById(R.id.buttonSubscribe);
-        buttonPublish   = findViewById(R.id.buttonPublish);
-        editTextSubTopic= findViewById(R.id.editTextSubTopic);
-        editTextPubTopic= findViewById(R.id.editTextPubTopic);
-        editTextMessage = findViewById(R.id.editTextMessage);
-        textViewLog     = findViewById(R.id.textViewLog);
-        scrollLog       = findViewById(R.id.scrollLog);
+        buttonSubscribe  = findViewById(R.id.buttonSubscribe);
+        buttonPublish    = findViewById(R.id.buttonPublish);
+        editTextSubTopic = findViewById(R.id.editTextSubTopic);
+        editTextPubTopic = findViewById(R.id.editTextPubTopic);
+        editTextMessage  = findViewById(R.id.editTextMessage);
+        textViewLog      = findViewById(R.id.textViewLog);
+        scrollLog        = findViewById(R.id.scrollLog);
 
-        buttonDisconnect.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(mqtt.isConnected()){
-                    try {
-                        mqtt.disconnet();
-                    } catch (MqttException e) {
-                        throw new RuntimeException(e);
-                    }
-                }else{
-                    Toast.makeText(getApplicationContext(),"Connect first!!",Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
-        // spinner setup
+        // Spinner role setup
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
-                this, R.array.roles_array, android.R.layout.simple_spinner_item
-        );
+                this, R.array.roles_array, android.R.layout.simple_spinner_item);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerRole.setAdapter(adapter);
 
@@ -71,15 +48,26 @@ public class MainActivity extends AppCompatActivity
                 onLog("! INIT EX: " + e.getMessage());
                 return;
             }
-            // enable controls based on role
             boolean canSub = role.equals("Subscriber") || role.equals("Both");
             boolean canPub = role.equals("Publisher")  || role.equals("Both");
 
             editTextSubTopic.setEnabled(canSub);
-            buttonSubscribe .setEnabled(canSub);
+            buttonSubscribe.setEnabled(canSub);
             editTextPubTopic.setEnabled(canPub);
-            editTextMessage .setEnabled(canPub);
-            buttonPublish   .setEnabled(canPub);
+            editTextMessage.setEnabled(canPub);
+            buttonPublish.setEnabled(canPub);
+        });
+
+        buttonDisconnect.setOnClickListener(v -> {
+            if (mqtt != null && mqtt.isConnected()) {
+                try {
+                    mqtt.disconnet();
+                } catch (MqttException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                Toast.makeText(getApplicationContext(), "Connect first!!", Toast.LENGTH_SHORT).show();
+            }
         });
 
         buttonSubscribe.setOnClickListener(v -> {
@@ -89,9 +77,22 @@ public class MainActivity extends AppCompatActivity
 
         buttonPublish.setOnClickListener(v -> {
             String topic = editTextPubTopic.getText().toString().trim();
-            String msg   = editTextMessage .getText().toString();
+            String msg   = editTextMessage.getText().toString();
             if (!topic.isEmpty() && !msg.isEmpty()) mqtt.publish(topic, msg);
         });
+
+        // Handle incoming hex data from BluetoothConnection
+        Intent intent = getIntent();
+        if (intent != null && intent.hasExtra("received_data_hex")) {
+            String hexData = intent.getStringExtra("received_data_hex");
+            if (hexData != null) {
+                spinnerRole.setSelection(2); // Set to "Both"
+                editTextPubTopic.setText("bt/data");
+                editTextMessage.setText(hexData);
+                buttonConnect.performClick();
+                new android.os.Handler().postDelayed(() -> buttonPublish.performClick(), 2000);
+            }
+        }
     }
 
     @Override
